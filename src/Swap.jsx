@@ -21,14 +21,10 @@ const Swap = () => {
                 throw new Error('Invalid input amount');
             }
 
-            const amount = Math.floor(parseFloat(inputAmount) * LAMPORTS_PER_SOL);
+            const amount = Math.floor(parseFloat(inputAmount) * LAMPORTS_PER_SOL); // Convert to lamports
+
             const response = await fetch(
-                `https://quote-api.jup.ag/v6/quote?inputMint=${INPUT_MINT}`+
-                `&outputMint=${OUTPUT_MINT}`+
-                `&amount=${amount}`+
-                `&slippageBps=50`+
-                `&onlyDirectRoutes=true`+
-                `&asLegacyTransaction=true`
+                `https://quote-api.jup.ag/v6/quote?inputMint=${INPUT_MINT}&outputMint=${OUTPUT_MINT}&amount=${amount}&slippageBps=50`
             );
 
             if (!response.ok) {
@@ -37,8 +33,7 @@ const Swap = () => {
             }
 
             const quoteResponse = await response.json();
-            console.log("Quote Response:", quoteResponse);
-            
+            console.log(quoteResponse);
             if (quoteResponse.outAmount) {
                 const outAmount = quoteResponse.outAmount / 1_000_000; // Convert from USDC decimals (6)
                 setOutputAmount(outAmount.toFixed(6));
@@ -107,8 +102,8 @@ const Swap = () => {
                     quoteResponse,
                     userPublicKey: publicKey.toString(),
                     wrapAndUnwrapSol: true,
-                    prioritizationFeeLamports: 10000,
-                    slippageBps: 50
+                    prioritizationFeeLamports: 1000,
+                    slippageBps: 50, // 0.5% slippage
                 })
             });
 
@@ -137,28 +132,40 @@ const Swap = () => {
                 throw new Error("Failed to deserialize transaction");
             }
 
-            const signedTransaction = await signTransaction(transaction);
-            console.log("Transaction signed successfully");
+            let retries = 3;
+            let signedTransaction;
+            while (retries > 0) {
+                try {
+                    signedTransaction = await signTransaction(transaction);
+                    console.log("Transaction signed successfully");
+                    break;
+                } catch (e) {
+                    console.error("Signing attempt failed:", e);
+                    retries--;
+                    if (retries === 0) throw new Error("Failed to sign transaction after multiple attempts");
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+            }
 
             const rawTransaction = signedTransaction.serialize();
             console.log("Sending transaction...");
-            
             const txid = await connection.sendRawTransaction(rawTransaction, {
                 skipPreflight: true,
                 maxRetries: 3,
-                preflightCommitment: 'processed',
-                minContextSlot: swapData.lastValidBlockHeight,
-                maxContextSlot: swapData.lastValidBlockHeight + 32
+                preflightCommitment: 'confirmed',
+                minContextSlot: swapData.lastValidBlockHeight
             });
             console.log("Transaction sent with ID:", txid);
 
             console.log("Confirming transaction...");
-            const confirmation = await connection.confirmTransaction({
-                signature: txid,
-                blockhash: swapData.blockhash,
-                lastValidBlockHeight: swapData.lastValidBlockHeight
-            }, 'processed');
+            const latestBlockHash = await connection.getLatestBlockhash();
+            const confirmationStrategy = {
+                blockhash: latestBlockHash.blockhash,
+                lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
+                signature: txid
+            };
 
+            const confirmation = await connection.confirmTransaction(confirmationStrategy);
             if (confirmation.value.err) {
                 throw new Error(`Transaction failed: ${confirmation.value.err}`);
             }
