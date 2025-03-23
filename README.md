@@ -8,7 +8,6 @@
 - **Wallet Adapter**: Connect to wallets easily for seamless blockchain interactions.
 - **Airdrop SOL**: Receive test SOL for development and testing purposes.
 - **Send Transactions**: Perform token transfers on Solana and Ethereum.
-- **Multi-Chain Support**: Built to work with both Solana and Ethereum networks.
 
 ## 🛠️ Technologies Used
 
@@ -20,7 +19,7 @@
 
 ## 🌟 About This Project
 
-This project showcases my expertise in multi-chain wallet integrations, secure key management, and seamless blockchain interactions. If you're interested in working with me, feel free to reach out!
+This project showcases my expertise in multi-chain wallet integrations, SDK's understanding airdrop,transactions , and seamless blockchain interactions. If you're interested in working with me, feel free to reach out!
 
 ## 📩 Contact
 
